@@ -21,3 +21,7 @@ def simpan_interaksi(user_id, topic, prompt, response):
 def get_previous_interactions(user_id, topic):
     """Mengambil riwayat interaksi untuk user dan topik tertentu."""
     return list(conversation_history.find({"user_id": user_id, "topic": topic}, {'_id': 0}))
+
+def hapus_riwayat_topik(user_id, topic):
+    """Menghapus riwayat percakapan untuk user dan topik tertentu."""
+    conversation_history.delete_many({"user_id": user_id, "topic": topic})
