@@ -1,7 +1,7 @@
 import datetime
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 from telegram.ext import  ContextTypes
-from models.model import simpan_interaksi, get_previous_interactions
+from models.model import simpan_interaksi, get_previous_interactions, hapus_riwayat_topik
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """ 
@@ -116,7 +116,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         previous_interactions = get_previous_interactions(user_id, chosen_topic)
 
         if previous_interactions and not context.user_data.get('confirmation_sent'):
-            # Tanyakan konfirmasi HANYA jika belum pernah ditanyakan di sesi ini
             keyboard = [
                 [InlineKeyboardButton("Ya", callback_data='ya'),
                  InlineKeyboardButton("Tidak", callback_data='tidak')]
@@ -125,32 +124,34 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Apakah Anda ingin mengulang kembali pelajaran sebelumnya?",
                                             reply_markup=reply_markup)
             
-            # Tandai bahwa konfirmasi sudah dikirim
             context.user_data['confirmation_sent'] = True
             context.user_data['last_topic'] = chosen_topic
-            return  # Tunggu jawaban pengguna
+            return
 
         elif context.user_data.get('confirmation_sent'):
-            # Tangani jawaban konfirmasi
             query = update.callback_query
             answer = query.data
-            context.user_data['confirmation_sent'] = False  # Reset flag
-            
+            context.user_data['confirmation_sent'] = False
+
             if answer == 'ya':
-                response = get_gemini_response(query.message.text, previous_interactions)
+                context.user_data['use_pre_prompt'] = True
+                await query.edit_message_text(text="Pre-prompting sudah dilakukan. Silahkan tanyakan apapun mengenai pembahasan sebelumnya.")
+                return
+
             elif answer == 'tidak':
                 hapus_riwayat_topik(user_id, chosen_topic)
-                response = get_gemini_response(query.message.text)
-            else:
-                response = "Pilihan tidak valid."
-                
-            await query.edit_message_text(text=response)
-            simpan_interaksi(user_id, chosen_topic, query.message.text, response)
-            return  # Selesai menangani konfirmasi 
+                await query.edit_message_text(text="Silahkan ajukan pertanyaan baru.")
 
-        else:  # Tidak ada previous_interactions
-            response = get_gemini_response(update.message.text, previous_interactions)
-            await update.message.reply_text(response)
-            simpan_interaksi(user_id, chosen_topic, update.message.text, response)
+            else:
+                await query.edit_message_text(text="Pilihan tidak valid.")
+                return
+
+        if context.user_data.get('use_pre_prompt'):
+            previous_interactions = get_previous_interactions(user_id, chosen_topic)
+            context.user_data['use_pre_prompt'] = False
+
+        response = get_gemini_response(update.message.text, previous_interactions)
+        await update.message.reply_text(response)
+        simpan_interaksi(user_id, chosen_topic, update.message.text, response)
 
     context.user_data['chosen_topic'] = chosen_topic
