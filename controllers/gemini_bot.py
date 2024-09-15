@@ -1,38 +1,24 @@
-from google.generativeai import text
+import google.generativeai as genai
 from dotenv import find_dotenv, dotenv_values
 
 config = dotenv_values(find_dotenv())
-text.api_key = config.get("GEMINI_API")
+genai.configure(api_key=config.get("GEMINI_API"))
 
-def generate_text(prompt,
-                   temperature=0.7, 
-                   top_k=40, 
-                   top_p=0.95, 
-                   max_output_tokens=512):
-    """
-    Fungsi untuk melakukan generate text dengan Gemini
-    """
-    response = text.generate_text(
-        prompt=prompt,
-        model='models/gemini-pro-vision',
-        temperature=temperature,
-        top_k=top_k,
-        top_p=top_p,
-        max_output_tokens=max_output_tokens
-    )
-    return response.result
-
-def get_gemini_response(prompt, previous_interactions=None):
+def get_gemini_response(prompt, previous_interactions=None, instruction=None):
     """
     Fungsi utama untuk mendapatkan response dari Gemini. 
     Melakukan pre-prompting jika ada previous_interactions.
     """
+    model = genai.GenerativeModel("models/gemini-1.5-flash", system_instruction=instruction) 
+    response = None
     if previous_interactions:
         context_string = "Riwayat percakapan:\n"
         for interaction in previous_interactions:
             context_string += f"User: {interaction['prompt']}\n"
             context_string += f"Bot: {interaction['response']}\n"
-        prompt = f"{context_string}\nUser: {prompt}"
-    
-    response = generate_text(prompt)
-    return response
+        new_prompt = f"{context_string}"
+        response = model.generate_content(new_prompt)
+    else:
+        response = model.generate_content(prompt)
+
+    return response.text
