@@ -7,32 +7,31 @@ client = MongoClient(config.get("MONGODB_URI"))
 db = client["hackathon_db"] 
 conversation_history = db["user_history"] 
 
-def simpan_interaksi(user_id, topic, prompt, response):
+def save_interaction(user_id, topic, interaction):
     """Menyimpan interaksi pengguna ke MongoDB."""
-    existing_interaction = conversation_history.find_one({"user_id": user_id, "topic": topic})
-    
-    # Membuat data baru untuk disimpan
-    new_interaction = {
-        "prompt": prompt,
-        "response": response,
-        "timestamp": datetime.now(),
-    }
-    
-    if existing_interaction:
-        # Jika sudah ada interaksi, tambahkan prompt dan response baru ke array
-        conversation_history.update_one(
-            {"user_id": user_id, "topic": topic},
-            {"$push": {"interactions": new_interaction}}
-        )
-    else:
-        # Jika belum ada, buat entry baru dengan array interactions
-        interaction = {
-            "user_id": user_id,
-            "topic": topic,
-            "interactions": [new_interaction],  # Menyimpan prompt dan response dalam array
-            "created_at": datetime.now(),
-        }
-        conversation_history.insert_one(interaction)
+    timestamp = datetime.utcnow()  # Mendapatkan waktu sekarang dalam UTC
+    try:
+        # Mencari dokumen yang sesuai dengan user_id dan topic
+        document = conversation_history.find_one({"user_id": user_id, "topic": topic})
+        if document:
+            # Jika dokumen ditemukan, tambahkan interaksi baru
+            conversation_history.update_one(
+                {"user_id": user_id, "topic": topic},
+                {"$push": {"interactions": {"role": interaction["role"], "content": interaction["content"]}}}
+            )
+        else:
+            # Jika dokumen tidak ditemukan, buat dokumen baru dengan interaksi
+            conversation_history.insert_one({
+                "user_id": user_id,
+                "topic": topic,
+                "interactions": [{
+                    "role": interaction["role"],
+                    "content": interaction["content"],
+                }],
+                "timestamp": timestamp
+            })
+    except Exception as e:
+        print(f"Terjadi kesalahan saat menyimpan interaksi: {e}")  # Debugging output
 
 def get_previous_interactions(user_id, topic):
     """Mengambil riwayat interaksi untuk user dan topik tertentu."""
@@ -48,7 +47,7 @@ def get_previous_interactions(user_id, topic):
         print(f"Terjadi kesalahan saat mengambil riwayat interaksi: {e}")  # Debugging output
         return []
 
-def hapus_semua_interaksi(user_id, topic):
+def delete_all_interactions(user_id, topic):
     """Menghapus semua interaksi untuk topik tertentu dari riwayat percakapan pengguna."""
     conversation_history.update_many(
         {"user_id": user_id, "topic": topic},

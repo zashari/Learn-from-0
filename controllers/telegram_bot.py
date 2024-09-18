@@ -1,270 +1,136 @@
-# from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
-# from telegram.ext import  ContextTypes
-# from controllers.gemini_bot import get_gemini_response
-# from models.model import simpan_interaksi, get_previous_interactions, hapus_riwayat_topik
-
-# async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-#     """ 
-#     Menampilkan pesan bantuan tentang cara menggunakan bot.
-#     """
-
-#     help_text = """
-#     Learn from 0!
-    
-#     To use this bot, simply follow these steps:
-#     1. Type /start to begin.
-#     2. Choose topic.
-#     3. Ask any question about the topic that you choosed
-    
-#     Feel free to ask any questions to us.
-#     """
-#     await update.message.reply_text(help_text)
-
-# async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-#     """ 
-#     Menampilkan daftar topik yang tersedia.
-#     """
-#     topics = [['Bisnis', 'Hukum', 'Coding']]
-
-#     reply_markup = ReplyKeyboardMarkup(topics, one_time_keyboard=True, resize_keyboard=True)
-
-#     await update.message.reply_text("Please choose a topic:", reply_markup=reply_markup)
-
-# async def bisnis_topic(update: Update, context: ContextTypes.DEFAULT_TYPE):
-#     """Mengirimkan informasi terkait topik 'Bisnis'."""
-
-#     default_prompt = """
-#     Kamu adalah asisten bisnis yang membantu dalam hal pemasaran, strategi dan keuangan. 
-#     Jangan menjawab pertanyaan di luar topik bisnis. 
-
-#     User: {user_message}
-#     """
-#     context.user_data['default_prompt'] = default_prompt
-
-#     await update.message.reply_text("Anda telah memilih topik Bisnis. Silakan ajukan pertanyaan Anda.")
-
-# async def hukum_topic(update: Update, context: ContextTypes.DEFAULT_TYPE):
-#     """Mengirimkan informasi terkait topik 'Hukum'."""
-
-#     default_prompt = """
-#     Kamu adalah asisten hukum yang ahli dalam hukum perusahaan dan peraturan pemerintah. 
-#     Jangan memberikan saran hukum dan fokuslah pada informasi umum. 
-
-#     User: {user_message}
-#     """
-#     context.user_data['default_prompt'] = default_prompt
-
-#     await update.message.reply_text("Anda telah memilih topik Hukum. Silakan ajukan pertanyaan Anda.")
-
-# async def coding_topic(update: Update, context: ContextTypes.DEFAULT_TYPE):
-#     """Mengirimkan informasi terkait topik 'Coding'."""
-
-#     default_prompt = """
-#     Kamu adalah asisten coding yang membantu dalam dunia IT. Jadi bantulah User dengan baik
-#     Berikan contoh kode jika diperlukan.
-
-#     User: {user_message}
-#     """
-#     context.user_data['default_prompt'] = default_prompt
-
-#     await update.message.reply_text("Anda telah memilih topik Coding. Silakan ajukan pertanyaan Anda.")
-
-# async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-#     user_id = update.effective_user.id
-#     user_message = update.message.text.lower()
-#     chosen_topic = None
-
-#     if chosen_topic is None:
-#         await update.message.reply_text("Pilih topik terlebih dahulu dengan menggunakan perintah /topics")
-#         return
-    
-#     if user_message in ['bisnis', 'hukum', 'coding']:
-#         if user_message == 'bisnis':
-#             await bisnis_topic(update, context)
-#         elif user_message == 'hukum':
-#             await hukum_topic(update, context)
-#         elif user_message == 'coding':
-#             await coding_topic(update, context)
-#     else:
-#         previous_interactions = get_previous_interactions(user_id, chosen_topic)
-
-#         if previous_interactions and not context.user_data.get('confirmation_sent'):
-#             keyboard = [
-#                 [InlineKeyboardButton("Ya", callback_data='ya'),
-#                  InlineKeyboardButton("Tidak", callback_data='tidak')]
-#             ]
-#             reply_markup = InlineKeyboardMarkup(keyboard)
-#             await update.message.reply_text("Apakah Anda ingin mengulang kembali pelajaran sebelumnya?",
-#                                             reply_markup=reply_markup)
-            
-#             context.user_data['confirmation_sent'] = True
-#             context.user_data['last_topic'] = chosen_topic
-#             return
-
-#         elif context.user_data.get('confirmation_sent'):
-#             query = update.callback_query
-#             answer = query.data
-#             context.user_data['confirmation_sent'] = False
-
-#             if answer == 'ya':
-#                 context.user_data['use_pre_prompt'] = True
-#                 await query.edit_message_text(text="Pre-prompting sudah dilakukan. Silahkan tanyakan apapun mengenai pembahasan sebelumnya.")
-#                 return 
-
-#             elif answer == 'tidak':
-#                 hapus_riwayat_topik(user_id, chosen_topic)
-#                 await query.edit_message_text(text="Riwayat percakapan dihapus. Silahkan ajukan pertanyaan baru.")
-
-#             else:
-#                 await query.edit_message_text(text="Pilihan tidak valid.")
-#                 return
-            
-#         if context.user_data.get('use_pre_prompt'):
-#             previous_interactions = get_previous_interactions(user_id, chosen_topic)
-#             context.user_data['use_pre_prompt'] = False
-        
-#         system_instruction = context.user_data.get('system_instruction')
-#         response = get_gemini_response(update.message.text, previous_interactions, system_instruction)
-#         await update.message.reply_text(response)
-#         simpan_interaksi(user_id, chosen_topic, update.message.text, response)
-
-
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
-from telegram.ext import  ContextTypes
-from controllers.gemini_bot import get_gemini_response
-from models.model import simpan_interaksi, get_previous_interactions, hapus_semua_interaksi
+from telegram.ext import ContextTypes
+from controllers.gemini_bot import (
+    get_gemini_response,
+    DEFAULT_INSTRUCTION
+)
+from models.model import save_interaction, get_previous_interactions, delete_all_interactions
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """ 
-    Menampilkan pesan bantuan tentang cara menggunakan bot.
+    Display a help message about how to use the bot.
     """
-
     help_text = """
     Learn from 0!
     
     To use this bot, simply follow these steps:
     1. Type /start to begin.
     2. Choose a topic.
-    3. Ask any question about the topic that you choose.
+    3. Ask any question about the topic you've chosen.
     
-    Feel free to ask any questions to us.
+    Feel free to ask us anything!
     """
     await update.message.reply_text(help_text)
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """ 
-    Menampilkan daftar topik yang tersedia.
+    Display the list of available topics.
     """
-    topics = [['Bisnis', 'Hukum', 'Coding']]
+    topics = [['Business', 'Law', 'Coding', 'Math']]
     reply_markup = ReplyKeyboardMarkup(topics, one_time_keyboard=True, resize_keyboard=True)
     await update.message.reply_text("Please choose a topic:", reply_markup=reply_markup)
 
 async def set_topic(update: Update, context: ContextTypes.DEFAULT_TYPE, topic: str, prompt_text: str):
-    """ Set topik dan menyiapkan prompt yang sesuai dengan topik yang dipilih """
+    """ Set the topic and prepare the appropriate prompt for the chosen topic """
     user_id = update.effective_user.id
+    context.user_data.pop('chosen_topic', None)
     context.user_data['chosen_topic'] = topic
-    context.user_data['default_prompt'] = prompt_text
+    
+    # Combine the topic-specific prompt_text with DEFAULT_INSTRUCTION
+    combined_instruction = f"{DEFAULT_INSTRUCTION}\n\n{prompt_text}"
+    context.user_data['system_instruction'] = combined_instruction
 
     previous_interactions = get_previous_interactions(user_id, topic)
 
     if previous_interactions:
         keyboard = [
-            [InlineKeyboardButton("Ya", callback_data='ya'),
-             InlineKeyboardButton("Tidak", callback_data='tidak')]
+            [InlineKeyboardButton("Yes", callback_data='yes'),
+             InlineKeyboardButton("No", callback_data='no')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text("Apakah Anda ingin mengulang kembali pelajaran sebelumnya?",
+        await update.message.reply_text("Would you like to review your previous lessons?",
                                         reply_markup=reply_markup)
         context.user_data['confirmation_sent'] = True
     else:
-        await update.message.reply_text(f"Anda telah memilih topik {topic}. Silakan ajukan pertanyaan Anda.")
-    
-async def bisnis_topic(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """ Mengirimkan informasi terkait topik 'Bisnis'. """
-    prompt_text = """
-    Kamu adalah asisten bisnis yang membantu dalam hal pemasaran, strategi, dan keuangan. 
-    Jangan menjawab pertanyaan di luar topik bisnis.
-    """
-    await set_topic(update, context, 'Bisnis', prompt_text)
+        await update.message.reply_text(f"You have chosen the {topic} topic. Please ask your question.")
 
-async def hukum_topic(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """ Mengirimkan informasi terkait topik 'Hukum'. """
+async def business_topic(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """ Send information related to the 'Business' topic. """
     prompt_text = """
-    Kamu adalah asisten hukum yang ahli dalam hukum perusahaan dan peraturan pemerintah. 
-    Berikan saran hukum dan fokuslah pada informasi umum.
-    
+    You are a business expert assistant specializing in marketing, strategy, and finance. 
+    Provide comprehensive answers to business-related questions, offering practical advice and theoretical knowledge.
+    Use real-world examples and case studies when appropriate to illustrate concepts.
+    If asked about recent business trends or news, acknowledge your knowledge cutoff and suggest the user verify current information.
+    Do not answer questions outside the realm of business or outside the business topic.
     """
-    await set_topic(update, context, 'Hukum', prompt_text)
+    await set_topic(update, context, 'Business', prompt_text)
+
+async def law_topic(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """ Send information related to the 'Law' topic. """
+    prompt_text = """
+    You are a legal expert assistant specializing in corporate law and government regulations. 
+    Provide clear, accurate legal information and focus on general principles of law.
+    Use hypothetical scenarios to explain complex legal concepts when appropriate.
+    Always remind users that your information is for educational purposes and not a substitute for professional legal advice.
+    Do not provide specific legal advice or answer questions outside the law topic.
+    """
+    await set_topic(update, context, 'Law', prompt_text)
 
 async def coding_topic(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """ Mengirimkan informasi terkait topik 'Coding'. """
+    """ Send information related to the 'Coding' topic. """
     prompt_text = """
-    Kamu adalah asisten coding yang membantu dalam dunia IT. Jadi bantulah User dengan baik.
-    Berikan contoh kode jika diperlukan.
+    You are a coding expert assistant helping users with various programming languages and IT concepts. 
+    Provide clear explanations of coding principles, best practices, and problem-solving strategies.
+    When appropriate, offer code examples to illustrate concepts or solutions.
+    Encourage good coding practices and explain the reasoning behind your suggestions.
+    If asked about the latest programming trends or tools, acknowledge your knowledge cutoff and suggest the user verify current information.
+    Do not write complete programs or debug extensive code without user interaction and do not answer questions outside coding topic.
     """
     await set_topic(update, context, 'Coding', prompt_text)
 
-# async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-#     user_id = update.effective_user.id
+async def math_topic(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """ Send information related to the 'Math' topic. """
+    prompt_text = """
+    You are a mathematics expert assistant helping users with various mathematical concepts and problem-solving. 
+    Provide clear explanations of mathematical principles, formulas, and problem-solving techniques.
+    When appropriate, offer step-by-step solutions to mathematical problems.
+    Use visual representations (described in text) when it helps to clarify complex concepts.
+    Encourage critical thinking and help users understand the underlying principles, not just memorize formulas.
+    Do not solve homework problems without ensuring the user understands the process and do not answer questions outside math topic.
+    """
+    await set_topic(update, context, 'Math', prompt_text)
 
-#     # Ambil last topic dari user data (menggunakan topik terakhir yang dipilih)
-#     chosen_topic = context.user_data.get('chosen_topic')
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE): 
+    user_id = update.effective_user.id
+    chosen_topic = context.user_data.get('chosen_topic')
 
-#     # Jika belum ada topik yang dipilih dan pesan bukan salah satu topik yang ada
-#     if not chosen_topic:
-#         await update.message.reply_text("Pilih topik terlebih dahulu dengan menggunakan perintah /topics")
-#         return
+    if not chosen_topic:
+        await update.message.reply_text("Please choose a topic first by using the /start command")
+        return 
 
-#     # Cek apakah user telah memilih untuk mengulang pembahasan sebelumnya
-#     if update.callback_query:
-#         print("Callback Query Received")  # Debugging output
-#         query = update.callback_query
-#         answer = query.data
-#         print(f"Answer: {answer}")  # Debugging output
-        
-#         # Reset flag confirmation setelah user merespon
-#         context.user_data['confirmation_sent'] = False
+    conversation = []
+    user_interaction = {
+        "role": "user",
+        "content": update.message.text 
+    }
+    conversation.append(user_interaction)
 
-#         if answer == 'ya':
-#             # Ambil interaksi sebelumnya dari database
-#             previous_interactions = get_previous_interactions(user_id, context.user_data.get('chosen_topic'))
-#             system_instruction = context.user_data.get('system_instruction')
-#             response = get_gemini_response(update.message.text, previous_interactions, system_instruction)
-#             print("Response Pre-prompting: ", response)  # Debugging output
+    # Use the combined instruction stored in user_data
+    system_instruction = context.user_data.get('system_instruction', DEFAULT_INSTRUCTION)
+    
+    response = get_gemini_response(update.message.text, "", system_instruction)  
 
-#             # Simpan interaksi baru
-#             simpan_interaksi(user_id, context.user_data.get('chosen_topic'), update.message.text, response)
-#             await query.edit_message_text(text="Pre-prompting sudah dilakukan. Silahkan tanyakan apapun mengenai pembahasan sebelumnya.")
-#         elif answer == 'tidak':
-#             # Hapus riwayat topik jika user memilih "Tidak"
-#             hapus_semua_interaksi(user_id, context.user_data.get('chosen_topic'))
-#             await query.edit_message_text(text="Riwayat percakapan dihapus. Silakan ajukan pertanyaan baru.")
-#         else:
-#             await query.edit_message_text(text="Pilihan tidak valid.")
-#         return
+    bot_interaction = {
+        "role": "bot",
+        "content": response
+    }
+    conversation.append(bot_interaction)
 
-#     # Jika tidak sedang pre-prompt, lanjutkan logika normal
-#     system_instruction = context.user_data.get('system_instruction')
-#     response = get_gemini_response(update.message.text, [], system_instruction)
+    await update.message.reply_text(response) 
 
-#     await update.message.reply_text(response)
-#     simpan_interaksi(user_id, context.user_data.get('chosen_topic'), update.message.text, response)
-
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Tangani pesan teks biasa
-    if update.message:
-        user_id = update.effective_user.id
-        chosen_topic = context.user_data.get('chosen_topic')
-
-        if not chosen_topic:
-            await update.message.reply_text("Pilih topik terlebih dahulu dengan menggunakan perintah /topics")
-            return
-
-        system_instruction = context.user_data.get('system_instruction')
-        response = get_gemini_response(update.message.text, [], system_instruction)
-
-        await update.message.reply_text(response)
-        simpan_interaksi(user_id, chosen_topic, update.message.text, response)
+    # Store the conversation
+    for msg in conversation:
+        save_interaction(user_id, chosen_topic, msg)
 
 async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -272,21 +138,30 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     user_id = update.effective_user.id
     chosen_topic = context.user_data.get('chosen_topic')
 
-    # Reset flag confirmation setelah user merespon
+    # Reset confirmation flag after user response
     context.user_data['confirmation_sent'] = False
 
-    if answer == 'ya':
-        # Ambil interaksi sebelumnya dari database
+    if answer == 'yes':
+        # Retrieve previous interactions from the database
         previous_interactions = get_previous_interactions(user_id, chosen_topic)
-        system_instruction = context.user_data.get('system_instruction')
+        print("Interaksi Ditemukan: ", previous_interactions[0])
+        context_string = "Analyze the Conversation History:\n"
+        for interaction in previous_interactions:
+            if 'role' in interaction and 'content' in interaction:
+                context_string += f"{interaction['role'].capitalize()}: {interaction['content']}\n"
+            else:
+                print(f"Warning: Unexpected interaction format: {interaction}")
+        new_prompt = f"{context_string}"
         
-        # Kirim prompt ke Gemini
-        response = get_gemini_response("", previous_interactions, system_instruction)  # update.message.text di sini adalah string kosong
+        system_instruction = context.user_data.get('system_instruction', DEFAULT_INSTRUCTION)
         
-        await query.edit_message_text(text="Pre-prompting sudah dilakukan. Silahkan tanyakan apapun mengenai pembahasan sebelumnya.")
-    elif answer == 'tidak':
-        # Hapus riwayat topik jika user memilih "Tidak"
-        hapus_semua_interaksi(user_id, chosen_topic)
-        await query.edit_message_text(text="Riwayat percakapan dihapus. Silakan ajukan pertanyaan baru.")
+        # Send prompt to Gemini
+        response = get_gemini_response(new_prompt, "", system_instruction)  # update.message.text here is an empty string
+        
+        await query.edit_message_text(text="Pre-prompting has been done. Please ask anything about the previous discussion.")
+    elif answer == 'no':
+        # Delete topic history if user chooses "No"
+        delete_all_interactions(user_id, chosen_topic)
+        await query.edit_message_text(text="Conversation history has been deleted. Please ask a new question.")
     else:
-        await query.edit_message_text(text="Pilihan tidak valid.")
+        await query.edit_message_text(text="Invalid choice.")
