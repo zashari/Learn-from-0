@@ -1,0 +1,5 @@
+pymongo
+python-dotenv
+python-telegram-bot
+google-generativeai
+RestrictedPython
