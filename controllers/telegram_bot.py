@@ -1,9 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 from telegram.ext import ContextTypes
-from controllers.gemini_bot import (
-    get_gemini_response,
-    DEFAULT_INSTRUCTION
-)
+from controllers.gemini_bot import get_gemini_response, DEFAULT_INSTRUCTION
 from models.model import save_interaction, get_previous_interactions, delete_all_interactions
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -31,12 +28,9 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Please choose a topic:", reply_markup=reply_markup)
 
 async def set_topic(update: Update, context: ContextTypes.DEFAULT_TYPE, topic: str, prompt_text: str):
-    """ Set the topic and prepare the appropriate prompt for the chosen topic """
     user_id = update.effective_user.id
-    context.user_data.pop('chosen_topic', None)
     context.user_data['chosen_topic'] = topic
     
-    # Combine the topic-specific prompt_text with DEFAULT_INSTRUCTION
     combined_instruction = f"{DEFAULT_INSTRUCTION}\n\n{prompt_text}"
     context.user_data['system_instruction'] = combined_instruction
 
@@ -108,29 +102,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Please choose a topic first by using the /start command")
         return 
 
-    conversation = []
-    user_interaction = {
-        "role": "user",
-        "content": update.message.text 
-    }
-    conversation.append(user_interaction)
-
-    # Use the combined instruction stored in user_data
     system_instruction = context.user_data.get('system_instruction', DEFAULT_INSTRUCTION)
     
-    response = get_gemini_response(update.message.text, "", system_instruction)  
-
-    bot_interaction = {
-        "role": "bot",
-        "content": response
-    }
-    conversation.append(bot_interaction)
+    response = get_gemini_response(user_id, chosen_topic, update.message.text, system_instruction)
 
     await update.message.reply_text(response) 
 
     # Store the conversation
-    for msg in conversation:
-        save_interaction(user_id, chosen_topic, msg)
+    save_interaction(user_id, chosen_topic, {"role": "user", "content": update.message.text})
+    save_interaction(user_id, chosen_topic, {"role": "bot", "content": response})
 
 async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -138,29 +118,21 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     user_id = update.effective_user.id
     chosen_topic = context.user_data.get('chosen_topic')
 
-    # Reset confirmation flag after user response
     context.user_data['confirmation_sent'] = False
 
     if answer == 'yes':
-        # Retrieve previous interactions from the database
         previous_interactions = get_previous_interactions(user_id, chosen_topic)
-        print("Interaksi Ditemukan: ", previous_interactions[0])
         context_string = "Analyze the Conversation History:\n"
         for interaction in previous_interactions:
             if 'role' in interaction and 'content' in interaction:
                 context_string += f"{interaction['role'].capitalize()}: {interaction['content']}\n"
-            else:
-                print(f"Warning: Unexpected interaction format: {interaction}")
-        new_prompt = f"{context_string}"
         
         system_instruction = context.user_data.get('system_instruction', DEFAULT_INSTRUCTION)
         
-        # Send prompt to Gemini
-        response = get_gemini_response(new_prompt, "", system_instruction)  # update.message.text here is an empty string
+        response = get_gemini_response(user_id, chosen_topic, context_string, system_instruction)
         
         await query.edit_message_text(text="Pre-prompting has been done. Please ask anything about the previous discussion.")
     elif answer == 'no':
-        # Delete topic history if user chooses "No"
         delete_all_interactions(user_id, chosen_topic)
         await query.edit_message_text(text="Conversation history has been deleted. Please ask a new question.")
     else:
