@@ -11,6 +11,7 @@ Here's why this project stands out:
 * **Easy to Use**:  Simply interact with the bot via Telegram to access its learning capabilities. 
 
 [DemoVideo](https://github.com/zashari/Learn-from-0/blob/main/assets/Demo_video.mp4)
+[![Watch the Demo](https://github.com/zashari/Learn-from-0/blob/main/assets/us_luck.png)](https://github.com/zashari/Learn-from-0/blob/main/assets/Demo_video.mp4)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
