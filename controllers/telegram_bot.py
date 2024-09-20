@@ -2,6 +2,9 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKe
 from telegram.ext import ContextTypes
 from controllers.gemini_bot import get_gemini_response, DEFAULT_INSTRUCTION
 from models.model import save_interaction, get_previous_interactions, delete_all_interactions
+import textwrap
+
+MAX_MESSAGE_LENGTH = 4096
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """ 
@@ -94,9 +97,20 @@ async def math_topic(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     await set_topic(update, context, 'Math', prompt_text)
 
+def split_long_message(text):
+    """Split a long message into chunks of maximum allowed length."""
+    return textwrap.wrap(text, MAX_MESSAGE_LENGTH, replace_whitespace=False, break_long_words=True)
+
+async def send_long_message(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
+    """Send a message, splitting it into multiple messages if it's too long."""
+    chunks = split_long_message(text)
+    for chunk in chunks:
+        await update.message.reply_text(chunk)
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE): 
     user_id = update.effective_user.id
     chosen_topic = context.user_data.get('chosen_topic')
+    message_text = update.message.text
 
     if not chosen_topic:
         await update.message.reply_text("Please choose a topic first by using the /start command")
@@ -104,12 +118,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     system_instruction = context.user_data.get('system_instruction', DEFAULT_INSTRUCTION)
     
-    response = get_gemini_response(user_id, chosen_topic, update.message.text, system_instruction)
+    response = get_gemini_response(user_id, chosen_topic, message_text, system_instruction)
 
-    await update.message.reply_text(response) 
+    await send_long_message(update, context, response)
 
-    # Store the conversation
-    save_interaction(user_id, chosen_topic, {"role": "user", "content": update.message.text})
+    save_interaction(user_id, chosen_topic, {"role": "user", "content": message_text})
     save_interaction(user_id, chosen_topic, {"role": "bot", "content": response})
 
 async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
