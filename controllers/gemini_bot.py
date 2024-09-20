@@ -76,7 +76,7 @@ class GeminiChat:
     def __init__(self, topic, user_id, instruction=None):
         self.topic = topic
         self.user_id = user_id
-        self.model = genai.GenerativeModel("models/gemini-1.5-flash", system_instruction=instruction, safety_settings=SAFETY_SETTINGS)
+        self.model = genai.GenerativeModel("models/gemini-1.5-pro", system_instruction=instruction, safety_settings=SAFETY_SETTINGS)
         self.chat = self.model.start_chat(history=[])
 
     def extract_json(self, text):
@@ -126,7 +126,7 @@ class GeminiChat:
             f"\nRemember, respond ONLY with the JSON object. Do not include any other text."
         )
         
-        analysis_model = genai.GenerativeModel("models/gemini-1.5-flash")
+        analysis_model = genai.GenerativeModel("models/gemini-1.5-pro")
         analysis_response = analysis_model.generate_content(analysis_prompt)
         print("Raw response: ", analysis_response.text)
 
@@ -151,7 +151,7 @@ class GeminiChat:
             f"```\n"
             f"The Python code should be enclosed within triple backticks (```)."
         )
-        code_gen_model = genai.GenerativeModel("models/gemini-1.5-flash")
+        code_gen_model = genai.GenerativeModel("models/gemini-1.5-pro")
         python_code_response = code_gen_model.generate_content(code_generation_prompt)
 
         try:
