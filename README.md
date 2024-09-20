@@ -10,7 +10,7 @@ Here's why this project stands out:
 * **Safety Focused**: Incorporates safety settings within Gemini to filter harmful content and ensure a positive user experience.
 * **Easy to Use**:  Simply interact with the bot via Telegram to access its learning capabilities. 
 
-[Demo video](https://drive.google.com/file/d/1YjM5G7YTt-jwPQ6wSjK8RUUo1wCNIKAh/view?usp=sharing)
+[Demo video](https://github.com/zashari/Learn-from-0/blob/8e961cbdf7693810fcd9f066ff28b450c0c358fd/assets/Demo_video.mp4)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
